@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include <math.h>
+
 void Simulation::Init(Scene* scene)
 {
     mScene = scene;
@@ -193,8 +195,26 @@ void Simulation::Update(float deltaTime)
 		glm::vec4 Ciz = glm::vec4(Pi[j-1].z, Pi[j].z, Pi[j+1].z, Pi[j+2].z);
 		glm::mat3x4 Ci = glm::mat3x4(Cix, Ciy, Ciz);
 		glm::vec3 CiT = T * Mcr * Ci;
-		
+
 		mScene->Transforms[mSplineTransformID].Translation = CiT;
+
+		//perform arc length check for current spline by taking dx/ds, dy/ds, and dz/ds
+		if (mScene->MainCamera.arc_check == false) {
+			float x0 = 0.0f, y0 = 0.0f, z0 = 0.0f;
+			float arc = 0.0f;
+			int length = 100;
+			for (int i = 1; i < length; i++) {
+				float x = i*0.5f, y = i*0.5f, z = i*0.5f;
+				float dx = x0 - x, dy = y0 - y, dz = z0 - z;
+				arc += sqrt((dx*dx) + (dy*dy) + (dz*dz));
+				mScene->MainCamera.arc_lengths.push_back(glm::vec2(float(i/length), arc));
+				x0 = x;
+				y0 = y;
+				//mScene->MainCamera.arc_speed = mScene->MainCamera.render_speed / sqrt((dxds*dxds) + (dyds*dyds) + (dzds*dzds));
+			}
+			mScene->MainCamera.total_length = arc;
+			mScene->MainCamera.arc_check = true;
+		}
 
 		//Checks if we are on next spline; if so move on, if at end turn around
 		if (mScene->MainCamera.t_renderSpline > 1.0 && reverse == false) {
@@ -206,6 +226,7 @@ void Simulation::Update(float deltaTime)
 				mScene->MainCamera.t_renderSpline = 0.0;
 				mScene->MainCamera.render_location++;
 				mScene->MainCamera.render_spline_curr++;
+				mScene->MainCamera.arc_check = false;
 			}
 		}
 		//Checks if we are on previous spline, if so go back, if at end turn around again
@@ -218,13 +239,14 @@ void Simulation::Update(float deltaTime)
 				mScene->MainCamera.t_renderSpline = 1.0;
 				mScene->MainCamera.render_location--;
 				mScene->MainCamera.render_spline_curr--;
+				mScene->MainCamera.arc_check = false;
 			}
 		}
 	}
 	//Same idea as rendering a cube to traverse the spline, but this incorporates camera
 	if (mScene->MainCamera.rollercoaster == true) {
 		int j = mScene->MainCamera.roller_location;
-		bool reverse = mScene->MainCamera.render_reverse;
+		bool reverse = mScene->MainCamera.roller_reverse;
 		std::vector <glm::vec3> Pi = mScene->MainCamera.Pi_rollercoaster;
 		glm::mat4 Mcr = mScene->MainCamera.Mcr;
 		mScene->MainCamera.t_rollercoaster += mScene->MainCamera.roller_speed * deltaTime;
@@ -245,7 +267,7 @@ void Simulation::Update(float deltaTime)
 
 		if (mScene->MainCamera.t_rollercoaster > 1.0 && reverse == false) {
 			if (j == Pi.size() - 3 && reverse == false) {
-				mScene->MainCamera.render_reverse = true;
+				mScene->MainCamera.roller_reverse = true;
 				mScene->MainCamera.roller_speed = -1 * mScene->MainCamera.roller_speed;
 			}
 			else {
@@ -256,7 +278,7 @@ void Simulation::Update(float deltaTime)
 		}
 		else if (mScene->MainCamera.t_rollercoaster < 0.0 && reverse == true) {
 			if (j == 1 && reverse == true) {
-				mScene->MainCamera.render_reverse = false;
+				mScene->MainCamera.roller_reverse = false;
 				mScene->MainCamera.roller_speed = -1 * mScene->MainCamera.roller_speed;
 			}
 			else {

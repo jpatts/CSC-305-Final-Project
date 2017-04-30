@@ -66,6 +66,7 @@ struct Camera
     glm::vec3 Look;
     glm::vec3 Up;
 
+	//rendering splines
 	bool rollercoaster = false;
 	bool renderSpline = false;
 	int render_location = 1;
@@ -81,9 +82,13 @@ struct Camera
 	bool roller_reverse = false;
 	int render_spline_curr = 1;
 	int roller_spline_curr = 1;
-
 	int render_spline_count = Pi_renderSpline.size();
 	int roller_spline_count = Pi_rollercoaster.size();
+
+	//arc length parametrization
+	std::vector<glm::vec2> arc_lengths = { glm::vec2(0.0f, 0.0f) };
+	float total_length;
+	bool arc_check = false;
 
     // Projection
     float FovY;
